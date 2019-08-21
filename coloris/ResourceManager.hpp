@@ -17,6 +17,7 @@ class ResourceManager
 {
 public:
 	T loadTexture(std::string file);
+	T loadTextureFromImage(const sf::Image& img);
 	F loadFont(std::string file);
 
 	std::string getPath(T);

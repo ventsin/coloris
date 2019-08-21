@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <SFML/System/Vector2.hpp>
+#include "Vector.hpp"
 
 #include <utility>
 
@@ -28,6 +28,8 @@ namespace cl
 		Status beginMovement(sf::Vector2f pos, Selection* sel);
 		void endMovement(sf::Vector2f pos);
 		
+		void update(cl::Vector2f posi);
+
 		sf::Vector2f getMovement() const;
 
 		std::pair<sf::Vector2f, sf::Vector2f> getPositions() const;

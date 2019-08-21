@@ -20,6 +20,8 @@
 #include "Workspace.hpp"
 #include "Selection.hpp"
 #include "Background.hpp"
+#include "SliderGroup.hpp"
+#include "ButtonGroup.hpp"
 #include "MouseStatus.hpp"
 #include "ResourceManager.hpp"
 
@@ -44,14 +46,16 @@ namespace ui
 		void menuClose();
 		void menuExit();
 
+		void rotateList(size_t oldPos, size_t newPos);
 		void reorderList();
 		void resizeList();
 
 		void mouseClick(bool leftclick);
-		void mouseMove(sf::Vector2i moved);
+		void mouseMove(cl::Vector2i moved);
 
 		void draw();
 
+		bool loadFromFile(std::string file);
 		bool saveToFile(std::string file);
 		void closeProject();
 
@@ -59,13 +63,19 @@ namespace ui
 		double getInverseZoomFactor();
 
 		Layer* addLayer(int id = -1); //Default Random Vertex
-		Layer* addLayer(VColor, int id = -1); //Colored Vertex
+		Layer* addLayer(VColor, sf::Vector2u size, int id = -1); //Colored Vertex
 		Layer* addLayer(std::string, int id = -1); //Image
+		Layer* addLayer(std::shared_ptr<sf::Texture>, int id = -1); //Image
+		Layer* addLayer(const sf::Image&, int id = -1); //Image
 		Layer* addLayer(std::string text, std::string font, int id = -1); //Text
-		bool removeLayer(size_t);
+		Layer* cloneLayer(Layer*);
+		bool removeLayer(size_t, bool withAction = true);
+		void flipLayer(size_t index, bool vertical);
 		size_t getLayerIndex(Layer*);
 		Layer* getLayerByIndex(size_t);
 		Layer* getLayerById(int);
+		
+		T getTextureByLayerId(int id);
 
 		void updateList();
 
@@ -100,6 +110,7 @@ namespace ui
 		sf::Vector2i mousePos;
 		sf::Vector2f posi, posi_last;
 
+		cl::Vector2f vLayerSize;
 		sf::Vector2f vLayerOrigin;
 		sf::Vector2f vLayerResult;
 
@@ -109,12 +120,15 @@ namespace ui
 
 		History history = History(this);
 		//Workspace workspace;
+		SliderGroup sliders;
+		ButtonGroup group;
 		Selection selection;
 		Background background;
 		cl::MouseStatus mouse;
 		ResourceManager resources;
 
 		bool mouseDown = false;
+		bool shiftPressed = false;
 	};
 
 	void run();

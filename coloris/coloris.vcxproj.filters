@@ -72,6 +72,12 @@
     <ClCompile Include="MouseStatus.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ButtonGroup.cpp">
+      <Filter>Source Files\widgets</Filter>
+    </ClCompile>
+    <ClCompile Include="SliderGroup.cpp">
+      <Filter>Source Files\widgets</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MenuRenderer.hpp">
@@ -118,6 +124,15 @@
     </ClInclude>
     <ClInclude Include="MouseStatus.hpp">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Vector.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ButtonGroup.hpp">
+      <Filter>Header Files\widgets</Filter>
+    </ClInclude>
+    <ClInclude Include="SliderGroup.hpp">
+      <Filter>Header Files\widgets</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

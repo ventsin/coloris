@@ -50,6 +50,8 @@ ui::Coloris::Coloris(unsigned int _x, unsigned int _y, std::string _title)
 	panel.create(*this, nana::rectangle(size().width - 200, size().height - 200 - statusbar.size().height, 200, 200), { 0, 0, 200, 200 });
 	newLayer.create(*this, nana::rectangle(700, 200 - 10, 10, 10));
 	list.create(panel, nana::rectangle(0, 0, 200, 200));
+	group.create(*this, size().width - 200, size().height - 225 - statusbar.size().height);//size().width - 200, panel.pos().y - 25);
+	sliders.create(*this, size().width - 200, menubar.size().height);
 
 	setupInterface();
 	setupEvents();
@@ -170,6 +172,75 @@ void ui::Coloris::setupInterface()
 void ui::Coloris::setupEvents()
 {
 	//Configure events
+	group.getElement(0)->events().click([&](const nana::arg_click& arg)
+		{
+			if (isLoaded())
+				addLayer(++lcount);
+			focus();
+		});
+
+	group.getElement(1)->events().click([&](const nana::arg_click& arg)
+		{
+			auto selected = list.selected();
+			if (selected.empty())
+				return;
+
+			rotateList(selected[0].item, selected[0].item + 1);
+			focus();
+		});
+
+	group.getElement(2)->events().click([&](const nana::arg_click& arg)
+		{
+			auto selected = list.selected();
+			if (selected.empty())
+				return;
+
+			rotateList(selected[0].item, selected[0].item - 1);
+			focus();
+		});
+
+	group.getElement(3)->events().click([&](const nana::arg_click& arg)
+		{
+			auto selected = list.selected();
+			if (selected.empty())
+				return;
+
+			cloneLayer(&layers[selected[0].item]);
+			focus();
+		});
+
+	group.getElement(4)->events().click([&](const nana::arg_click& arg)
+		{
+			auto selected = list.selected();
+			if (!selected.empty())
+				removeLayer(selected[0].item);
+			focus();
+		});
+
+	group.getElement(5)->events().click([&](const nana::arg_click& arg)
+		{
+			auto selected = list.selected();
+			if (!selected.empty())
+				flipLayer(selected[0].item, false);
+			focus();
+		});
+
+	group.getElement(6)->events().click([&](const nana::arg_click& arg)
+		{
+			auto selected = list.selected();
+			if (!selected.empty())
+				flipLayer(selected[0].item, true);
+			focus();
+		});
+
+	group.getElement(7)->events().click([&](const nana::arg_click& arg)
+		{
+			auto selected = list.selected();
+			if (!selected.empty())
+				layers[selected[0].item].rasterize(&resources, &shader);
+			focus();
+		});
+
 	newLayer.events().click([&](const nana::arg_click& arg)
 		{
 			if (isLoaded())
@@ -178,6 +249,7 @@ void ui::Coloris::setupEvents()
 				auto action = std::make_shared<ActionAddVertexLayer>();
 				action->id = ++lcount;
 				action->color = color;
+				action->size = pSize;
 				action->name = "Add Vertex Layer";
 				history.addAction(action);
 			}
@@ -217,9 +289,19 @@ void ui::Coloris::setupEvents()
 			reorderList();
 		});
 
+	events().key_release([&](const nana::arg_keyboard& arg)
+		{
+			if (arg.key == nana::keyboard::os_shift)
+				shiftPressed = false;
+		});
+
 	events().key_press([&](const nana::arg_keyboard& arg)
 		{
-			if (arg.key == nana::keyboard::del)
+			if (arg.key == nana::keyboard::os_shift)
+			{
+				shiftPressed = true;
+			}
+			else if (arg.key == nana::keyboard::del)
 			{
 				auto selected = list.selected();
 				if (!selected.empty())
@@ -232,9 +314,10 @@ void ui::Coloris::setupEvents()
 			statusbar.move(nana::rectangle(0, arg.height - 20, arg.width, 20));
 			panel.move(nana::rectangle(size().width - 200, size().height - 200 - statusbar.size().height, 200, 200));
 			work.setSize({ arg.width - 200, arg.height - statusbar.size().height - menubar.size().height });
+			group.move(size().width - 200, size().height - 225 - statusbar.size().height);
 		});
 
-	events().key_char([&](const nana::arg_keyboard& arg)
+	events().key_char.connect_front([&](const nana::arg_keyboard& arg)
 		{
 			if (arg.key == nana::keyboard::undo)
 			{
@@ -294,7 +377,7 @@ void ui::Coloris::setupEvents()
 			}
 		});
 
-	events().mouse_move([&](const nana::arg_mouse& arg) { mouseMove({ arg.pos.x, arg.pos.y }); });
+	events().mouse_move([&](const nana::arg_mouse& arg) { mouseMove(cl::Vector2i(arg.pos.x, arg.pos.y)); });
 
 	events().mouse_wheel([&](const nana::arg_wheel& arg)
 		{
@@ -325,7 +408,7 @@ void ui::Coloris::setupEvents()
 					//mv->unmake = std::bind([](Coloris* c, Layer* l) { t->setPosition(v); }, &layers[sel[0].item], vLayerOrigin);
 					//mv->l = addLayer(f.string(), ++lcount);
 					mv->id = ++lcount;
-					mv->file = f.string();
+					//mv->file = f.string();
 					mv->name = "Add Image Layer " + f.filename().string();//std::to_string(sel[0].item);
 					//mv->run = false;
 					history.addAction(mv);
@@ -369,7 +452,7 @@ void ui::Coloris::menuNew()
 	//This method blocks the application execution until the inputbox gets closed.
 	//To allow user to continue interacting with parent and other windows, use show() instead.
 	//It returns true if the user clicks OK button, or false otherwise.
-	if (input.show_modal(name, width, height))
+	if (input.show(name, width, height))
 	{
 		pName = name.value();
 		pSize.x = width.value();
@@ -389,6 +472,29 @@ void ui::Coloris::menuNew()
 
 void ui::Coloris::menuOpen()
 {
+	//if (isLoaded())
+		//savePrompt();
+
+	nana::filebox picker(*this, true);
+	picker.add_filter("JavaScript Object Notation (*.json)", "*.json");
+	picker.allow_multi_select(false);
+	
+	auto paths = picker.show();
+	if (!paths.empty())
+	{
+		if (loadFromFile(paths[0].generic_string()))
+		{
+			pFile = paths[0].generic_string();
+
+			//enable controls!
+			filemenu->enabled(2, true);
+			filemenu->enabled(3, true);
+			filemenu->enabled(4, true);
+		}
+		else
+			closeProject();
+		//filemenu->enabled()
+	}
 }
 
 void ui::Coloris::menuSave()
@@ -451,6 +557,37 @@ void ui::Coloris::menuExit()
 	nana::API::exit();
 }
 
+void ui::Coloris::rotateList(size_t oldPos, size_t newPos)
+{
+	//Make sure both positions are valid. This is useful for when multiple things are changing the list frequently.
+	auto s = layers.size();
+	if (newPos < s && oldPos < s)
+	{
+		if (oldPos < newPos)
+		{
+			auto its = layers.begin() + oldPos;
+			auto ith = layers.begin() + newPos + 1;
+			auto fit = std::rotate(its, its + 1, ith);
+
+			updateList();
+			list.at(0).at(newPos).select(true);
+		}
+		else if (oldPos > newPos)
+		{
+			auto rits = layers.rbegin() + (layers.size() - oldPos - 1);
+			auto rith = layers.rbegin() + (layers.size() - newPos);
+			auto fit = std::rotate(rits, rits + 1, rith);
+
+			updateList();
+			list.at(0).at(newPos).select(true);
+		}
+		else //The user dragged but there was no actual movement
+		{
+			//We do nothing on this scenario, this is just a reminder
+		}
+	}
+}
+
 void ui::Coloris::reorderList()
 {
 	//First, we must determine where our new position is.
@@ -465,33 +602,7 @@ void ui::Coloris::reorderList()
 		return;
 	auto selected = list.selected()[0];
 
-	//Make sure both positions are valid. This is useful for when multiple things are changing the list frequently.
-	auto s = layers.size();
-	if (hovered.item < s && selected.item < s)
-	{
-		if (selected.item < hovered.item)
-		{
-			auto its = layers.begin() + selected.item;
-			auto ith = layers.begin() + hovered.item + 1;
-			auto fit = std::rotate(its, its + 1, ith);
-
-			updateList();
-			list.at(0).at(fit - layers.begin()).select(true);
-		}
-		else if (selected.item > hovered.item)
-		{
-			auto rits = layers.rbegin() + (layers.size() - selected.item - 1);
-			auto rith = layers.rbegin() + (layers.size() - hovered.item);
-			auto fit = std::rotate(rits, rits + 1, rith);
-
-			updateList();
-			list.at(0).at(fit - layers.rbegin()).select(true);
-		}
-		else //The user dragged but there was no actual movement
-		{
-			//We do nothing on this scenario, this is just a reminder
-		}
-	}
+	rotateList(selected.item, hovered.item);
 }
 
 void ui::Coloris::resizeList()
@@ -523,6 +634,7 @@ void ui::Coloris::mouseClick(bool leftclick)
 				vLayerOrigin = layers[list.selected()[0].item].getPosition();
 				break;
 			case cl::MouseStatus::Resize:
+				vLayerSize = layers[list.selected()[0].item].getSize();
 				break;
 			default:
 				break;
@@ -572,7 +684,7 @@ void ui::Coloris::mouseClick(bool leftclick)
 	}
 }
 
-void ui::Coloris::mouseMove(sf::Vector2i moved)
+void ui::Coloris::mouseMove(cl::Vector2i moved)
 {
 	sf::Vector2i pipi;
 	pipi.x = moved.x;
@@ -593,6 +705,7 @@ void ui::Coloris::mouseMove(sf::Vector2i moved)
 		resultC.x = std::round(tempPosi.x);
 		resultC.y = std::round(tempPosi.y);
 		auto resultP = sf::Vector2f({ (float)tempresult.x, (float)tempresult.y });
+		mouse.update(posi);
 
 		if (rect.contains(curPos))
 		{
@@ -608,7 +721,10 @@ void ui::Coloris::mouseMove(sf::Vector2i moved)
 				}
 				else if (op == cl::MouseStatus::Resize)
 				{
-					layers[sel[0].item].resize(mouse.getContact(), -resultC);
+					if (shiftPressed)
+						layers[sel[0].item].resizeAspect(mouse.getContact(), vLayerSize, mouse.getPositions());//std::make_pair(posi_clicked, posi)); //mouse.getPositions());
+					else
+						layers[sel[0].item].resize(mouse.getContact(), -resultC);
 					//we should have a selection.resize() here... But we're lazy...
 					setSelection(sel[0].item);
 				}
@@ -701,6 +817,78 @@ void ui::Coloris::draw()
 	work.display();
 }
 
+bool ui::Coloris::loadFromFile(std::string file)
+{
+	try
+	{
+		std::ifstream f(file);
+		if (f.is_open())
+		{
+			json j;
+			{
+				std::ostringstream ss;
+				ss << f.rdbuf();
+				j = json::parse(ss.str(), nullptr, false);
+			}
+
+			if (j == json::value_t::discarded)
+				return false;
+
+			pName = j["name"].get<std::string>();
+			pSize.x = j["size"]["width"];
+			pSize.y = j["size"]["height"];
+
+			background.setSize(pSize);
+			background.visible = true;
+			caption(pName + " - Coloris");
+
+			json data = j["layers"];
+			for (auto& d : data)
+			{
+				std::string type = d["type"];
+				if (type == "vertex")
+				{
+					VColor vc;
+					vc.a = sf::Color(d["colors"]["a"]["r"], d["colors"]["a"]["g"], d["colors"]["a"]["b"], d["colors"]["a"]["a"]);
+					vc.b = sf::Color(d["colors"]["b"]["r"], d["colors"]["b"]["g"], d["colors"]["b"]["b"], d["colors"]["b"]["a"]);
+					vc.c = sf::Color(d["colors"]["c"]["r"], d["colors"]["c"]["g"], d["colors"]["c"]["b"], d["colors"]["c"]["a"]);
+					vc.d = sf::Color(d["colors"]["d"]["r"], d["colors"]["d"]["g"], d["colors"]["d"]["b"], d["colors"]["d"]["a"]);
+
+					auto l = addLayer(vc, { d["size"]["width"], d["size"]["height"] });
+					l->name = d["name"].get<std::string>();
+					l->setPosition(d["position"]["x"], d["position"]["y"]);
+					l->setRotation(d["rotation"]);
+				}
+				else if (type == "image")
+				{
+					std::vector<sf::Uint8> vec = base64::decode(d["data"].get<std::string>());
+					sf::Image img;
+					img.loadFromMemory(vec.data(), vec.size());
+					auto l = addLayer(img);
+					l->name = d["name"].get<std::string>();
+					l->setPosition(d["position"]["x"], d["position"]["y"]);
+					l->setRotation(d["rotation"]);
+				}
+				else if (type == "text")
+				{
+
+				}
+				else
+					return false;
+			}
+			
+			return true;
+		}
+		return false;
+	}
+	catch (json::exception& e)
+	{
+		//output exception information
+		messageBox("Error loading project", "The loading operation has failed. The project file is likely corrupt");
+		return false;
+	}
+}
+
 bool ui::Coloris::saveToFile(std::string file)
 {
 	json j;
@@ -712,7 +900,7 @@ bool ui::Coloris::saveToFile(std::string file)
 		auto type = l.getType();
 		//turn into Vector2i later
 		sf::Vector2f pos = l.getPosition();
-		sf::Vector2f size = l.getSize();
+		sf::Vector2u size = l.getSize();
 
 		obj["type"] = type;
 		obj["name"] = l.name;
@@ -787,7 +975,7 @@ bool ui::Coloris::saveToFile(std::string file)
 
 	j["layers"] = data;
 	j["name"] = pName;
-	j["size"] = { {"x", pSize.x}, {"y", pSize.y} };
+	j["size"] = { {"width", pSize.x}, {"height", pSize.y} };
 
 	std::ofstream s(file);
 	if (s.is_open())
@@ -833,7 +1021,7 @@ Layer* ui::Coloris::addLayer(int id)
 {
 	if (isLoaded())
 	{
-		layers.push_back(Layer(id ? id : ++lcount));
+		layers.push_back(Layer(id > 0 ? id : ++lcount));
 
 		VColor color;
 		color.a = generateColor();
@@ -849,13 +1037,13 @@ Layer* ui::Coloris::addLayer(int id)
 	return nullptr;
 }
 
-Layer* ui::Coloris::addLayer(VColor vc, int id)
+Layer* ui::Coloris::addLayer(VColor vc, sf::Vector2u size, int id)
 {
 	if (isLoaded())
 	{
-		layers.push_back(Layer(id ? id : ++lcount));
+		layers.push_back(Layer(id > 0 ? id : ++lcount));
 
-		layers.back().setup(sf::Vector2u(1920, 1080), vc, "Layer " + std::to_string(layers.size()) + " (Vertex)");
+		layers.back().setup(size, vc, "Layer " + std::to_string(layers.size()) + " (Vertex)");
 		list.at(0).push_back(layers.back().name);
 		resizeList();
 		return &layers.back();
@@ -870,7 +1058,7 @@ Layer* ui::Coloris::addLayer(std::string file, int id)
 		auto t = resources.loadTexture(file);
 		if (t)
 		{
-			layers.push_back(Layer(id ? id : ++lcount));
+			layers.push_back(Layer(id > 0 ? id : ++lcount));
 			layers.back().setup(t, "Layer " + std::to_string(layers.size()) + " (Image)");
 
 			list.at(0).push_back(layers.back().name);
@@ -885,11 +1073,54 @@ Layer* ui::Coloris::addLayer(std::string file, int id)
 	return nullptr;
 }
 
+Layer* ui::Coloris::addLayer(std::shared_ptr<sf::Texture> t, int id)
+{
+	if (isLoaded())
+	{
+		if (t)
+		{
+			layers.push_back(Layer(id > 0 ? id : ++lcount));
+			layers.back().setup(t, "Layer " + std::to_string(layers.size()) + " (Image)");
+
+			list.at(0).push_back(layers.back().name);
+			resizeList();
+			return &layers.back();
+		}
+		else
+		{
+			messageBox("Failed to load image...", "Image could not be loaded!");
+		}
+	}
+	return nullptr;
+}
+
+Layer* ui::Coloris::addLayer(const sf::Image& img, int id)
+{
+	if (isLoaded())
+	{
+		auto t = resources.loadTextureFromImage(img);
+		if (t)
+		{
+			layers.push_back(Layer(id > 0 ? id : ++lcount));
+			layers.back().setup(t, "Layer " + std::to_string(layers.size()) + " (Image)");
+
+			list.at(0).push_back(layers.back().name);
+			resizeList();
+			return &layers.back();
+		}
+		else
+		{
+			messageBox("Failed to load image...", "Image could not be loaded!");
+		}
+	}
+	return nullptr;
+}
+
 Layer* ui::Coloris::addLayer(std::string text, std::string font, int id)
 {
 	if (isLoaded())
 	{
-		layers.push_back(Layer(id ? id : ++lcount));
+		layers.push_back(Layer(id > 0 ? id : ++lcount));
 
 		VColor color;
 		color.a = generateColor();
@@ -905,10 +1136,68 @@ Layer* ui::Coloris::addLayer(std::string text, std::string font, int id)
 	return nullptr;
 }
 
-bool ui::Coloris::removeLayer(size_t index)
+Layer* ui::Coloris::cloneLayer(Layer* l)
+{
+	if (l)
+	{
+		auto name = l->name;
+		auto pos = l->getPosition();
+		auto size = l->getSize();
+		if (l->getType() == "vertex")
+		{
+			auto nl = addLayer(l->getColors(), size, ++lcount);
+			nl->name = name + " (Copy)";
+			nl->setPosition(pos);
+			updateList();
+			return nl;
+		}
+		else if (l->getType() == "image")
+		{
+			auto nl = addLayer(l->getTexture(), ++lcount);
+			nl->name = name + " (Copy)";
+			//nl->setPosition(pos);
+			nl->resizeTo({ (cl::Vector2i)pos, (cl::Vector2i)size });
+			updateList();
+			return nl;
+		}
+	}
+	return nullptr;
+}
+
+bool ui::Coloris::removeLayer(size_t index, bool action)
 {
 	if (index >= layers.size())
 		return false;
+
+	if (action)
+	{
+		if (layers[index].getType() == "vertex")
+		{
+			auto action = std::make_shared<ActionRemoveVertexLayer>();
+			action->id = layers[index].getId();
+			action->size = layers[index].getSize();
+			action->color = layers[index].getColors();
+			action->lname = layers[index].name;
+			action->name = "Remove Vertex Layer";
+			action->pos = layers[index].getPosition();
+			action->size = layers[index].getSize();
+			action->run = false;
+			history.addAction(action);
+		}
+		else if (layers[index].getType() == "image")
+		{
+			auto action = std::make_shared<ActionRemoveImageLayer>();
+			action->id = layers[index].getId();
+			//action->file = resources.getPath(layers[index].getTexture());
+			action->lname = layers[index].name;
+			action->name = "Remove Image Layer";
+			action->recovery = layers[index].getTexture();
+			action->pos = layers[index].getPosition();
+			action->size = layers[index].getSize();
+			action->run = false;
+			history.addAction(action);
+		}
+	}
 
 	layers.erase(layers.begin() + index);
 	list.erase(list.at(0).at(index));
@@ -916,6 +1205,11 @@ bool ui::Coloris::removeLayer(size_t index)
 	selection.visible = false;
 
 	return true;
+}
+
+void ui::Coloris::flipLayer(size_t index, bool vertical)
+{
+	layers[index].flip(vertical);
 }
 
 size_t ui::Coloris::getLayerIndex(Layer* l)
@@ -944,6 +1238,14 @@ Layer* ui::Coloris::getLayerById(int id)
 	return nullptr;
 }
 
+T ui::Coloris::getTextureByLayerId(int id)
+{
+	auto l = getLayerById(id);
+	if (l)
+		return l->getTexture();
+	return T();
+}
+
 void ui::Coloris::updateList()
 {
 	list.avoid_drawing([&]() {
@@ -960,7 +1262,7 @@ void ui::Coloris::updateList()
 void ui::Coloris::setSelection(size_t index)
 {
 	auto& l = layers[index];
-	selection.setRect({ l.getPosition(), l.getSize() });
+	selection.setRect({ l.getPosition(), l.getSize() * 1.f });
 	selection.visible = true;
 }
 

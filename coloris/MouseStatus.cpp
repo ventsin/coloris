@@ -36,6 +36,11 @@ void cl::MouseStatus::endMovement(sf::Vector2f pos)
 	contact = 0;
 }
 
+void cl::MouseStatus::update(cl::Vector2f posi)
+{
+	result = posi;
+}
+
 sf::Vector2f cl::MouseStatus::getMovement() const
 {
 	return result - origin;

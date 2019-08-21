@@ -18,6 +18,18 @@ T ResourceManager::loadTexture(std::string file)
 	return nullptr;
 }
 
+T ResourceManager::loadTextureFromImage(const sf::Image& img)
+{
+	auto p = std::make_shared<sf::Texture>();
+	if (p->loadFromImage(img))
+	{
+		textures.push_back(std::make_pair("", p));
+		return p;
+	}
+
+	return nullptr;
+}
+
 F ResourceManager::loadFont(std::string file)
 {
 	for (auto& f : fonts)
