@@ -134,6 +134,7 @@
     <ClCompile Include="Background.cpp" />
     <ClCompile Include="button.cpp" />
     <ClCompile Include="ButtonGroup.cpp" />
+    <ClCompile Include="combox.cpp" />
     <ClCompile Include="Files.cpp" />
     <ClCompile Include="Gui.cpp" />
     <ClCompile Include="History.cpp" />
@@ -148,7 +149,9 @@
     <ClCompile Include="RichText.cpp" />
     <ClCompile Include="scroll.cpp" />
     <ClCompile Include="Selection.cpp" />
-    <ClCompile Include="SliderGroup.cpp" />
+    <ClCompile Include="TransformAdjusts.cpp" />
+    <ClCompile Include="VertexControls.cpp" />
+    <ClCompile Include="spinbox.cpp" />
     <ClCompile Include="Workspace.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -167,7 +170,8 @@
     <ClInclude Include="ResourceManager.hpp" />
     <ClInclude Include="RichText.hpp" />
     <ClInclude Include="Selection.hpp" />
-    <ClInclude Include="SliderGroup.hpp" />
+    <ClInclude Include="TransformAdjusts.hpp" />
+    <ClInclude Include="VertexControls.hpp" />
     <ClInclude Include="Vector.hpp" />
     <ClInclude Include="Workspace.hpp" />
   </ItemGroup>

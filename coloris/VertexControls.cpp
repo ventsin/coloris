@@ -1,18 +1,36 @@
 #include "VertexControls.hpp"
 
-SliderGroup::SliderGroup()
+#include "Layer.hpp"
+
+VertexControls::VertexControls()
 {
 }
 
-SliderGroup::~SliderGroup()
+VertexControls::~VertexControls()
 {
 }
 
-void SliderGroup::create(nana::window wd, int _x, int _y)
+void VertexControls::create(nana::window wd, int _x, int _y)
 {
 	x = _x;
 	y = _y;
 	drawing = std::make_unique<nana::drawing>(wd);
+
+	spin.create(wd, { x + 10, y + 220, 180, 25 });
+	spin.scheme().activated = nana::color(218, 165, 32);
+	spin.scheme().background = nana::color(30, 30, 30);
+	spin.scheme().foreground = nana::color(230, 230, 230);
+	//spin.enable_focus_color(false);
+	spin.caption("Vertex");
+	spin.range({
+		"Top-Left",
+		"Top-Right",
+		"Bottom-Right",
+		"Bottom-Left" });
+	spin.events().text_changed([&](const nana::arg_spinbox& arg)
+		{
+			updateSliders();
+		});
 
 	red_slider.create(wd, { x + 10, y + 10, 20, 200 });
 	red_slider.maximum(255);
@@ -22,6 +40,7 @@ void SliderGroup::create(nana::window wd, int _x, int _y)
 	red_slider.scheme().color_slider_highlighted = nana::color(180, 0, 0);
 
 	red_text.create(wd, { x + 190 - 23, y + 110, 23, 20 });
+	red_text.scheme().activated = nana::color(218, 165, 32);
 	red_text.fgcolor({ 230, 230, 230 });
 	red_text.bgcolor({ 30, 30, 30 });
 	red_text.multi_lines(false);
@@ -43,6 +62,7 @@ void SliderGroup::create(nana::window wd, int _x, int _y)
 	green_slider.scheme().color_slider_highlighted = nana::color(0, 180, 0);
 
 	green_text.create(wd, { x + 190 - 23, y + 130 + 1, 23, 20 });
+	green_text.scheme().activated = nana::color(218, 165, 32);
 	green_text.fgcolor({ 230, 230, 230 });
 	green_text.bgcolor({ 30, 30, 30 });
 	green_text.multi_lines(false);
@@ -64,6 +84,7 @@ void SliderGroup::create(nana::window wd, int _x, int _y)
 	blue_slider.scheme().color_slider_highlighted = nana::color(0, 0, 180);
 
 	blue_text.create(wd, { x + 190 - 23, y + 150 + 2, 23, 20 });
+	blue_text.scheme().activated = nana::color(218, 165, 32);
 	blue_text.fgcolor({ 230, 230, 230 });
 	blue_text.bgcolor({ 30, 30, 30 });
 	blue_text.multi_lines(false);
@@ -85,6 +106,7 @@ void SliderGroup::create(nana::window wd, int _x, int _y)
 	alpha_slider.scheme().color_slider_highlighted = nana::color(180, 180, 180);
 
 	alpha_text.create(wd, { x + 190 - 23, y + 170 + 3, 23, 20 });
+	alpha_text.scheme().activated = nana::color(218, 165, 32);
 	alpha_text.fgcolor({ 230, 230, 230 });
 	alpha_text.bgcolor({ 30, 30, 30 });
 	alpha_text.multi_lines(false);
@@ -98,30 +120,51 @@ void SliderGroup::create(nana::window wd, int _x, int _y)
 	alpha_label.scheme().foreground = nana::color(230, 230, 230);
 	alpha_label.transparent(true);
 
-	red_slider.events().value_changed(std::bind(&SliderGroup::updateFromSlider, this, std::placeholders::_1));
-	green_slider.events().value_changed(std::bind(&SliderGroup::updateFromSlider, this, std::placeholders::_1));
-	blue_slider.events().value_changed(std::bind(&SliderGroup::updateFromSlider, this, std::placeholders::_1));
-	alpha_slider.events().value_changed(std::bind(&SliderGroup::updateFromSlider, this, std::placeholders::_1));
+	red_slider.events().value_changed(std::bind(&VertexControls::updateFromSlider, this, std::placeholders::_1));
+	green_slider.events().value_changed(std::bind(&VertexControls::updateFromSlider, this, std::placeholders::_1));
+	blue_slider.events().value_changed(std::bind(&VertexControls::updateFromSlider, this, std::placeholders::_1));
+	alpha_slider.events().value_changed(std::bind(&VertexControls::updateFromSlider, this, std::placeholders::_1));
 
-	red_text.events().text_changed(std::bind(&SliderGroup::updateFromText, this, std::placeholders::_1));
-	green_text.events().text_changed(std::bind(&SliderGroup::updateFromText, this, std::placeholders::_1));
-	blue_text.events().text_changed(std::bind(&SliderGroup::updateFromText, this, std::placeholders::_1));
-	alpha_text.events().text_changed(std::bind(&SliderGroup::updateFromText, this, std::placeholders::_1));
+	red_text.events().text_changed(std::bind(&VertexControls::updateFromText, this, std::placeholders::_1));
+	green_text.events().text_changed(std::bind(&VertexControls::updateFromText, this, std::placeholders::_1));
+	blue_text.events().text_changed(std::bind(&VertexControls::updateFromText, this, std::placeholders::_1));
+	alpha_text.events().text_changed(std::bind(&VertexControls::updateFromText, this, std::placeholders::_1));
 
 	enabled(false);
 }
 
-void SliderGroup::move(int x, int y)
+void VertexControls::move(int _x, int _y)
 {
+	x = _x;
+	y = _y;
+
+	spin.move({ x + 10, y + 220, 180, 25 });
+
+	red_slider.move({ x + 10, y + 10, 20, 200 });
+	red_text.move({ x + 190 - 23, y + 110, 23, 20 });
+	red_label.move({ x + 190 - 60, y + 110 + 1, 32, 20 });
+	green_slider.move({ x + 30 + 1, y + 10, 20, 200 });
+	green_text.move({ x + 190 - 23, y + 130 + 1, 23, 20 });
+	green_label.move({ x + 190 - 60, y + 130 + 1 + 1, 32, 20 });
+	blue_slider.move({ x + 50 + 2, y + 10, 20, 200 });
+	blue_text.move({ x + 190 - 23, y + 150 + 2, 23, 20 });
+	blue_label.move({ x + 190 - 60, y + 150 + 2 + 1, 32, 20 });
+	alpha_slider.move({ x + 70 + 3, y + 10, 20, 200 });
+	alpha_text.move({ x + 190 - 23, y + 170 + 3, 23, 20 });
+	alpha_label.move({ x + 190 - 60, y + 170 + 3 + 1, 32, 20 });
+
+	updateColor();
 }
 
-void SliderGroup::enabled(bool enabled)
+void VertexControls::enabled(bool enabled)
 {
 	is_enabled = enabled;
 	//alpha_label.transparent(true);
 
 	if (enabled)
 	{
+		spin.show();
+
 		red_slider.show();
 		green_slider.show();
 		blue_slider.show();
@@ -144,6 +187,8 @@ void SliderGroup::enabled(bool enabled)
 	}
 	else
 	{
+		spin.hide();
+
 		red_slider.hide();
 		green_slider.hide();
 		blue_slider.hide();
@@ -164,12 +209,34 @@ void SliderGroup::enabled(bool enabled)
 	}
 }
 
-bool SliderGroup::enabled()
+bool VertexControls::enabled()
 {
 	return is_enabled;
 }
 
-void SliderGroup::updateFromText(const nana::arg_textbox& arg)
+void VertexControls::setLayer(Layer* _l) 
+{
+	layer = _l;
+	updateSliders();
+}
+
+int VertexControls::getCorner() const
+{
+	const std::string s = spin.value();
+
+	if (s == "Top-Left")
+		return 0;
+	if (s == "Top-Right")
+		return 1;
+	if (s == "Bottom-Right")
+		return 2;
+	if (s == "Bottom-Left")
+		return 3;
+
+	return -1;
+}
+
+void VertexControls::updateFromText(const nana::arg_textbox& arg)
 {
 	if (is_busy)
 		return;
@@ -180,11 +247,22 @@ void SliderGroup::updateFromText(const nana::arg_textbox& arg)
 	blue_slider.value(blue_text.to_int());
 	alpha_slider.value(alpha_text.to_int());
 
+	sf::Color c;
+	c.r = red_text.to_int();
+	c.g = green_text.to_int();
+	c.b = blue_text.to_int();
+	c.a = alpha_text.to_int();
+
+	VColor vc = layer->getColors();
+	vc[getCorner()] = c;
+
+	layer->setColors(vc);
+
 	updateColor();
 	is_busy = false;
 }
 
-void SliderGroup::updateFromSlider(const nana::arg_slider& arg)
+void VertexControls::updateFromSlider(const nana::arg_slider& arg)
 {
 	if (is_busy)
 		return;
@@ -195,12 +273,45 @@ void SliderGroup::updateFromSlider(const nana::arg_slider& arg)
 	blue_text.caption(std::to_string(blue_slider.value()));
 	alpha_text.caption(std::to_string(alpha_slider.value()));
 
+	sf::Color c;
+	c.r = red_slider.value();
+	c.g = green_slider.value();
+	c.b = blue_slider.value();
+	c.a = alpha_slider.value();
+
+	VColor vc = layer->getColors();
+	vc[getCorner()] = c;
+
+	layer->setColors(vc);
+
 	updateColor();
 	is_busy = false;
 }
 
-void SliderGroup::updateColor()
+void VertexControls::updateColor()
 {
 	color = nana::color(red_slider.value(), green_slider.value(), blue_slider.value(), alpha_slider.value() / 255.0);
 	drawing->update();
+}
+
+void VertexControls::updateSliders()
+{
+	if (!layer)
+		return;
+
+	is_busy = true;
+	sf::Color color = layer->getColors()[getCorner()];
+	red_slider.value(color.r);
+	green_slider.value(color.g);
+	blue_slider.value(color.b);
+	alpha_slider.value(color.a);
+
+	red_text.caption(std::to_string(red_slider.value()));
+	green_text.caption(std::to_string(green_slider.value()));
+	blue_text.caption(std::to_string(blue_slider.value()));
+	alpha_text.caption(std::to_string(alpha_slider.value()));
+
+	updateColor();
+
+	is_busy = false;
 }

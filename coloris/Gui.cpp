@@ -38,8 +38,11 @@ ui::Coloris::Coloris(unsigned int _x, unsigned int _y, std::string _title)
 	bgcolor(nana::color(37, 37, 37));
 	nana::API::track_window_size(*this, { 800, 600 }, false);
 
+	attemptDebugMode();
+
 	//Load our Bilinear Interpolation shader
-	shader.loadFromFile("vert.glsl", "frag.glsl");
+	if (!shader.loadFromFile("vert.glsl", "frag.glsl"))
+		return;
 
 	//Generate a new icon every run
 	generateIcon();
@@ -48,10 +51,10 @@ ui::Coloris::Coloris(unsigned int _x, unsigned int _y, std::string _title)
 	menubar.create(*this);
 	statusbar.create(*this, nana::rectangle(0, size().height - 20, size().width, 20), true);
 	panel.create(*this, nana::rectangle(size().width - 200, size().height - 200 - statusbar.size().height, 200, 200), { 0, 0, 200, 200 });
-	newLayer.create(*this, nana::rectangle(700, 200 - 10, 10, 10));
 	list.create(panel, nana::rectangle(0, 0, 200, 200));
 	group.create(*this, size().width - 200, size().height - 225 - statusbar.size().height);//size().width - 200, panel.pos().y - 25);
 	sliders.create(*this, size().width - 200, menubar.size().height);
+	adjusts.create(*this, size().width - 200, menubar.size().height + 250);
 
 	setupInterface();
 	setupEvents();
@@ -77,6 +80,13 @@ ui::Coloris::Coloris(unsigned int _x, unsigned int _y, std::string _title)
 
 ui::Coloris::~Coloris()
 {
+}
+
+void ui::Coloris::attemptDebugMode()
+{
+	std::ifstream f("debug");
+	if (f.is_open())
+		debug = true;
 }
 
 void ui::Coloris::generateIcon()
@@ -130,6 +140,7 @@ void ui::Coloris::setupInterface()
 	filemenu->append("Open", [&](nana::menu::item_proxy& ip) { menuOpen(); });
 	filemenu->append("Save", [&](nana::menu::item_proxy& ip) { menuSave(); });
 	filemenu->append("Save As", [&](nana::menu::item_proxy& ip) { menuSaveAs(); });
+	filemenu->append("Export As", [&](nana::menu::item_proxy& ip) { menuExportAs(); });
 	filemenu->append("Close", [&](nana::menu::item_proxy& ip) { menuClose(); });
 	filemenu->append_splitter();
 	filemenu->append("Exit", [&](nana::menu::item_proxy& ip) { menuExit(); });
@@ -137,17 +148,22 @@ void ui::Coloris::setupInterface()
 	filemenu->enabled(2, false);
 	filemenu->enabled(3, false);
 	filemenu->enabled(4, false);
+	filemenu->enabled(5, false);
 
 	statusbar.format(true);
 	statusbar.caption(" <size=10>Teste</>");
 	statusbar.bgcolor(nana::color(47, 47, 47));
 	statusbar.fgcolor(nana::color(230, 230, 230));
 
-	newLayer.scheme().activated = nana::color(218, 165, 32);
-	newLayer.scheme().background = nana::color(40, 40, 40);
-	newLayer.scheme().foreground = nana::color(200, 200, 200);
-	//newLayer.enable_focus_color(false);
-	newLayer.edge_effects(false);
+	/*combo.scheme().activated = nana::color(218, 165, 32);
+	combo.scheme().background = nana::color(30, 30, 30);
+	combo.scheme().foreground = nana::color(230, 230, 230);
+	//combo.scheme().selection_unfocused = nana::colors::red;
+	combo.push_back("Top-Left");
+	combo.push_back("Top-Right");
+	combo.push_back("Bottom-Right");
+	combo.push_back("Bottom-Left");
+	*/
 
 	list.scheme().header_bgcolor = nana::color(47, 47, 47);
 	list.scheme().header_fgcolor = nana::color(230, 230, 230);
@@ -241,20 +257,6 @@ void ui::Coloris::setupEvents()
 			focus();
 		});
 
-	newLayer.events().click([&](const nana::arg_click& arg)
-		{
-			if (isLoaded())
-			{
-				VColor color = generateColors();
-				auto action = std::make_shared<ActionAddVertexLayer>();
-				action->id = ++lcount;
-				action->color = color;
-				action->size = pSize;
-				action->name = "Add Vertex Layer";
-				history.addAction(action);
-			}
-		});
-
 	list.events().key_release([&](const nana::arg_keyboard& arg)
 		{
 			if (arg.key == nana::keyboard::backspace)
@@ -267,9 +269,21 @@ void ui::Coloris::setupEvents()
 	list.events().selected([&](const nana::arg_listbox& arg)
 		{
 			if (arg.item.selected())
+			{
 				setSelection(arg.item.pos().item);
+				adjusts.enabled(true);
+				adjusts.setLayer(&layers[arg.item.pos().item]);
+				if (layers[arg.item.pos().item].getType() == "vertex")
+				{
+					sliders.enabled(true);
+					sliders.setLayer(&layers[arg.item.pos().item]);
+				}
+			}
 			else
+			{
 				selection.visible = false;
+				sliders.enabled(false);
+			}
 
 			focus();
 		});
@@ -315,6 +329,7 @@ void ui::Coloris::setupEvents()
 			panel.move(nana::rectangle(size().width - 200, size().height - 200 - statusbar.size().height, 200, 200));
 			work.setSize({ arg.width - 200, arg.height - statusbar.size().height - menubar.size().height });
 			group.move(size().width - 200, size().height - 225 - statusbar.size().height);
+			sliders.move(size().width - 200, menubar.size().height);
 		});
 
 	events().key_char.connect_front([&](const nana::arg_keyboard& arg)
@@ -467,6 +482,7 @@ void ui::Coloris::menuNew()
 		filemenu->enabled(2, true);
 		filemenu->enabled(3, true);
 		filemenu->enabled(4, true);
+		filemenu->enabled(5, true);
 	}
 }
 
@@ -490,6 +506,7 @@ void ui::Coloris::menuOpen()
 			filemenu->enabled(2, true);
 			filemenu->enabled(3, true);
 			filemenu->enabled(4, true);
+			filemenu->enabled(5, true);
 		}
 		else
 			closeProject();
@@ -535,6 +552,41 @@ void ui::Coloris::menuSaveAs()
 	}
 }
 
+void ui::Coloris::menuExportAs()
+{
+	//open file save dialog
+	nana::filebox picker(*this, false);
+	picker.add_filter("Portable Network Graphics (*.png)", "*.png");
+	picker.add_filter("JPEG (*.jpg)", "*.jpg;*.jpeg");
+	picker.add_filter("Bitmap (*.bmp)", "*.bmp");
+	picker.allow_multi_select(false);
+
+	auto paths = picker.show();
+	if (!paths.empty())
+	{
+		sf::RenderTexture texture;
+		texture.create(pSize.x, pSize.y);
+		texture.clear(sf::Color::Black);
+		for (auto& layer : layers)
+			if (layer.getType() == "vertex")
+			{
+				sf::RenderStates states;
+				//reconfigure the shader with the layer data
+				VColor vc = layer.getColors();
+				shader.setUniform("color0", sf::Glsl::Vec4(vc.a));
+				shader.setUniform("color1", sf::Glsl::Vec4(vc.b));
+				shader.setUniform("color3", sf::Glsl::Vec4(vc.c));
+				shader.setUniform("color2", sf::Glsl::Vec4(vc.d));
+				states.shader = &shader;
+				texture.draw(layer, states);
+			}
+			else
+				texture.draw(layer);
+		texture.display();
+		texture.getTexture().copyToImage().saveToFile(paths[0].generic_string());
+	}
+}
+
 void ui::Coloris::menuClose()
 {
 	//remember to prompt user to save if another, unsaved project is open
@@ -546,6 +598,7 @@ void ui::Coloris::menuClose()
 	filemenu->enabled(2, false);
 	filemenu->enabled(3, false);
 	filemenu->enabled(4, false);
+	filemenu->enabled(5, false);
 }
 
 void ui::Coloris::menuExit()
@@ -650,37 +703,7 @@ void ui::Coloris::mouseClick(bool leftclick)
 	}
 	else
 	{
-		//update layer icons
-		for (size_t i = 0; i < layers.size(); ++i)
-		{
-			float scale = 0.2f;
-			auto v = layers[i].getSize();
-			auto vee = v * scale;
-			sf::RenderTexture texture;
-			sf::RenderStates states;
-			if (layers[i].getType() == "vertex")
-			{
-				VColor vc = layers[i].getColors();
-				shader.setUniform("color0", sf::Glsl::Vec4(vc.a));
-				shader.setUniform("color1", sf::Glsl::Vec4(vc.b));
-				shader.setUniform("color3", sf::Glsl::Vec4(vc.c));
-				shader.setUniform("color2", sf::Glsl::Vec4(vc.d));
-				states.shader = &shader;
-			}
-			states.transform.scale({ scale, scale });
-			sf::View camera(layers[i].getPosition() * scale + vee / 2.f, vee);
-			texture.create((unsigned)vee.x, (unsigned)vee.y);
-			texture.setView(camera);
-			texture.clear(sf::Color::Black);
-			texture.draw(layers[i], states);
-			texture.display();
-
-			auto image = texture.getTexture().copyToImage();
-			std::vector<sf::Uint8> content;
-			if (cl::saveToMemory("bmp", { image.getPixelsPtr(), image.getSize().x, image.getSize().y }, content))
-				if (layers[i].preview.open(content.data(), content.size()))
-					list.at(0).at(i).icon(layers[i].preview);
-		}
+		updatePreviews();
 	}
 }
 
@@ -770,26 +793,37 @@ void ui::Coloris::draw()
 	shape.setRotation(rotation);
 
 	sfe::RichText text;
-	text.setFont(*resources.loadFont("arial.ttf"));
-	text.setCharacterSize(14);
-	text << sfe::TextStroke{ sf::Color::White, sf::Color::Black, 1.f }
-		<< "Current Zoom Factor: " << sf::Color::Blue << std::to_string(getZoomFactor()) << "\n"
-		<< sf::Color::White << "Mouse: (" << sf::Color::Green << std::to_string(posi.x) << sf::Color::White
-		<< ", " << sf::Color::Green << std::to_string(posi.y) << sf::Color::White << " (" << sf::Color::Cyan
-		<< std::to_string(menubar.size().height) << sf::Color::White << "))\n";
-	if (!layers.empty())
-		text << "Layer 1 Pos: (" << sf::Color::Yellow << std::to_string(layers[0].getPosition().x) << sf::Color::White
-		<< ", " << sf::Color::Yellow << std::to_string(layers[0].getPosition().y) << sf::Color::White << ")\n"
-		<< "Layer 1 Size: (" << sf::Color::Yellow << std::to_string(layers[0].getSize().x) << sf::Color::White
-		<< ", " << sf::Color::Yellow << std::to_string(layers[0].getSize().y) << sf::Color::White << ")\n";
-	text << "History: " << sf::Color::Magenta << history.toString() << sf::Color::White;
-	text << "Resources: " << sf::Color::Magenta << resources.toString() << sf::Color::White;
+	if (debug)
+	{
+		text.setFont(*resources.loadFont("arial.ttf"));
+		text.setCharacterSize(14);
+		text << sfe::TextStroke{ sf::Color::White, sf::Color::Black, 1.f }
+			<< "Current Zoom Factor: " << sf::Color::Blue << std::to_string(getZoomFactor()) << "\n"
+			<< sf::Color::White << "Mouse: (" << sf::Color::Green << std::to_string(posi.x) << sf::Color::White
+			<< ", " << sf::Color::Green << std::to_string(posi.y) << sf::Color::White << " (" << sf::Color::Cyan
+			<< std::to_string(menubar.size().height) << sf::Color::White << "))\n";
+		if (!layers.empty())
+			text << "Layer 1 Pos: (" << sf::Color::Yellow << std::to_string(layers[0].getPosition().x) << sf::Color::White
+			<< ", " << sf::Color::Yellow << std::to_string(layers[0].getPosition().y) << sf::Color::White << ")\n"
+			<< "Layer 1 Size: (" << sf::Color::Yellow << std::to_string(layers[0].getSize().x) << sf::Color::White
+			<< ", " << sf::Color::Yellow << std::to_string(layers[0].getSize().y) << sf::Color::White << ")\n";
+		text << "History: " << sf::Color::Magenta << history.toString() << sf::Color::White;
+		text << "Resources: " << sf::Color::Magenta << resources.toString() << sf::Color::White;
+	}
 
 	background.setScale((float)getZoomFactor(), (float)getZoomFactor());
 
 	work.clear(sf::Color(30, 30, 30));
 	work.draw(background);
-	work.draw(shape);
+	
+	if (debug)
+		work.draw(shape);
+
+	if (!list.selected().empty() and layers[list.selected()[0].item].update_selection)
+	{
+		setSelection(list.selected()[0].item);
+		layers[list.selected()[0].item].update_selection = false;
+	}
 
 	for (auto& layer : layers)
 	{
@@ -810,10 +844,14 @@ void ui::Coloris::draw()
 	}
 
 	work.draw(selection);
-	auto temp = work.getView();
-	work.setView(sf::View({ (float)work.getSize().x / 2.f, (float)work.getSize().y / 2.f }, { (float)work.getSize().x, (float)work.getSize().y }));
-	work.draw(text);
-	work.setView(temp);
+
+	if (debug)
+	{
+		auto temp = work.getView();
+		work.setView(sf::View({ (float)work.getSize().x / 2.f, (float)work.getSize().y / 2.f }, { (float)work.getSize().x, (float)work.getSize().y }));
+		work.draw(text);
+		work.setView(temp);
+	}
 	work.display();
 }
 
@@ -997,6 +1035,7 @@ void ui::Coloris::closeProject()
 	pSize.y = 0;
 	background.visible = false;
 	selection.visible = false;
+	sliders.enabled(false);
 
 	caption("Coloris");
 }
@@ -1044,6 +1083,7 @@ Layer* ui::Coloris::addLayer(VColor vc, sf::Vector2u size, int id)
 		layers.push_back(Layer(id > 0 ? id : ++lcount));
 
 		layers.back().setup(size, vc, "Layer " + std::to_string(layers.size()) + " (Vertex)");
+		layers.back().debug_draw = debug;
 		list.at(0).push_back(layers.back().name);
 		resizeList();
 		return &layers.back();
@@ -1060,7 +1100,7 @@ Layer* ui::Coloris::addLayer(std::string file, int id)
 		{
 			layers.push_back(Layer(id > 0 ? id : ++lcount));
 			layers.back().setup(t, "Layer " + std::to_string(layers.size()) + " (Image)");
-
+			layers.back().debug_draw = debug;
 			list.at(0).push_back(layers.back().name);
 			resizeList();
 			return &layers.back();
@@ -1081,7 +1121,7 @@ Layer* ui::Coloris::addLayer(std::shared_ptr<sf::Texture> t, int id)
 		{
 			layers.push_back(Layer(id > 0 ? id : ++lcount));
 			layers.back().setup(t, "Layer " + std::to_string(layers.size()) + " (Image)");
-
+			layers.back().debug_draw = debug;
 			list.at(0).push_back(layers.back().name);
 			resizeList();
 			return &layers.back();
@@ -1103,7 +1143,7 @@ Layer* ui::Coloris::addLayer(const sf::Image& img, int id)
 		{
 			layers.push_back(Layer(id > 0 ? id : ++lcount));
 			layers.back().setup(t, "Layer " + std::to_string(layers.size()) + " (Image)");
-
+			layers.back().debug_draw = debug;
 			list.at(0).push_back(layers.back().name);
 			resizeList();
 			return &layers.back();
@@ -1129,6 +1169,7 @@ Layer* ui::Coloris::addLayer(std::string text, std::string font, int id)
 		color.d = generateColor();
 
 		layers.back().setup(sf::Vector2u(1920, 1080), color, "Layer " + std::to_string(layers.size()) + " (Vertex)");
+		layers.back().debug_draw = debug;
 		list.at(0).push_back(layers.back().name);
 		resizeList();
 		return &layers.back();
@@ -1257,6 +1298,41 @@ void ui::Coloris::updateList()
 			panel.size({ list.size().width, list.size().height + 100 });
 		}
 		});
+}
+
+void ui::Coloris::updatePreviews()
+{
+	//update layer icons
+	for (size_t i = 0; i < layers.size(); ++i)
+	{
+		float scale = 0.02f;
+		auto v = layers[i].getSize();
+		auto vee = v * scale;
+		sf::RenderTexture texture;
+		sf::RenderStates states;
+		if (layers[i].getType() == "vertex")
+		{
+			VColor vc = layers[i].getColors();
+			shader.setUniform("color0", sf::Glsl::Vec4(vc.a));
+			shader.setUniform("color1", sf::Glsl::Vec4(vc.b));
+			shader.setUniform("color3", sf::Glsl::Vec4(vc.c));
+			shader.setUniform("color2", sf::Glsl::Vec4(vc.d));
+			states.shader = &shader;
+		}
+		states.transform.scale({ scale, scale });
+		sf::View camera(layers[i].getPosition() * scale + vee / 2.f, vee);
+		texture.create((unsigned)vee.x, (unsigned)vee.y);
+		texture.setView(camera);
+		texture.clear(sf::Color::Black);
+		texture.draw(layers[i], states);
+		texture.display();
+
+		auto image = texture.getTexture().copyToImage();
+		std::vector<sf::Uint8> content;
+		if (cl::saveToMemory("bmp", { image.getPixelsPtr(), image.getSize().x, image.getSize().y }, content))
+			if (layers[i].preview.open(content.data(), content.size()))
+				list.at(0).at(i).icon(layers[i].preview);
+	}
 }
 
 void ui::Coloris::setSelection(size_t index)

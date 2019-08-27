@@ -8,6 +8,18 @@
 
 struct VColor
 {
+	sf::Color& operator[](int i)
+	{
+		if (i == 0)
+			return a;
+		if (i == 1)
+			return b;
+		if (i == 2)
+			return c;
+		if (i == 3)
+			return d;
+		throw "Invalid vcolor index";
+	}
 	sf::Color a, b, c, d;
 };
 
@@ -71,6 +83,8 @@ public:
 
 	void setup(cl::Vector2u size, VColor colors, std::string name);
 	void setup(std::shared_ptr<sf::Texture> tex, std::string name);
+
+	bool update_selection = false;
 
 	nana::paint::image preview;
 

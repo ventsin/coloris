@@ -75,8 +75,17 @@
     <ClCompile Include="ButtonGroup.cpp">
       <Filter>Source Files\widgets</Filter>
     </ClCompile>
-    <ClCompile Include="SliderGroup.cpp">
+    <ClCompile Include="combox.cpp">
       <Filter>Source Files\widgets</Filter>
+    </ClCompile>
+    <ClCompile Include="spinbox.cpp">
+      <Filter>Source Files\widgets</Filter>
+    </ClCompile>
+    <ClCompile Include="VertexControls.cpp">
+      <Filter>Source Files\widgets</Filter>
+    </ClCompile>
+    <ClCompile Include="TransformAdjusts.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -131,7 +140,10 @@
     <ClInclude Include="ButtonGroup.hpp">
       <Filter>Header Files\widgets</Filter>
     </ClInclude>
-    <ClInclude Include="SliderGroup.hpp">
+    <ClInclude Include="VertexControls.hpp">
+      <Filter>Header Files\widgets</Filter>
+    </ClInclude>
+    <ClInclude Include="TransformAdjusts.hpp">
       <Filter>Header Files\widgets</Filter>
     </ClInclude>
   </ItemGroup>

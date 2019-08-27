@@ -7,10 +7,11 @@
 #include "scrollpanel.hpp"
 //#include "scroll.hpp"
 #include <nana/gui/widgets/scroll.hpp>
-#include <nana/gui/widgets/button.hpp>
 //#include "listbox.hpp"
 #include <nana/gui/widgets/listbox.hpp>
 #include <nana/gui/widgets/menubar.hpp>
+#include <nana/gui/widgets/combox.hpp>
+#include <nana/gui/widgets/spinbox.hpp>
 
 #include <SFML/Graphics.hpp>
 
@@ -20,8 +21,9 @@
 #include "Workspace.hpp"
 #include "Selection.hpp"
 #include "Background.hpp"
-#include "SliderGroup.hpp"
 #include "ButtonGroup.hpp"
+#include "VertexControls.hpp"
+#include "TransformAdjusts.hpp"
 #include "MouseStatus.hpp"
 #include "ResourceManager.hpp"
 
@@ -33,6 +35,8 @@ namespace ui
 		Coloris(unsigned int, unsigned int, std::string);
 		~Coloris();
 
+		void attemptDebugMode();
+
 		void generateIcon();
 
 		void setupInterface();
@@ -43,6 +47,7 @@ namespace ui
 		void menuOpen();
 		void menuSave();
 		void menuSaveAs();
+		void menuExportAs();
 		void menuClose();
 		void menuExit();
 
@@ -78,6 +83,7 @@ namespace ui
 		T getTextureByLayerId(int id);
 
 		void updateList();
+		void updatePreviews();
 
 		void setSelection(size_t index);
 
@@ -101,11 +107,11 @@ namespace ui
 		std::unique_ptr<nana::simple_dragdrop> listdrop;
 		nana::scrollpanel panel;
 		nana::menubar menubar;
-		nana::menu* filemenu;
+		nana::menu* filemenu = nullptr;
 		nana::listbox list;
 		nana::label statusbar;
 		nana::timer timer;
-		nana::button newLayer;
+		nana::combox combo;
 
 		sf::Vector2i mousePos;
 		sf::Vector2f posi, posi_last;
@@ -120,15 +126,18 @@ namespace ui
 
 		History history = History(this);
 		//Workspace workspace;
-		SliderGroup sliders;
+		VertexControls sliders;
 		ButtonGroup group;
 		Selection selection;
 		Background background;
+		TransformAdjusts adjusts;
 		cl::MouseStatus mouse;
 		ResourceManager resources;
 
 		bool mouseDown = false;
 		bool shiftPressed = false;
+
+		bool debug = false;
 	};
 
 	void run();
